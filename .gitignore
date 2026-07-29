@@ -34,12 +34,18 @@ ENV/
 *~
 .DS_Store
 
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
 # YK runtime artifacts
 *.yk
 10mb_raw.txt
 10mb_data.yk
 demo.yk
 example.yk
+decoded_file.txt
 
 # Logs
 *.log
