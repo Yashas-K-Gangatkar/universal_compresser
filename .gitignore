@@ -41,11 +41,15 @@ Cargo.lock
 
 # YK runtime artifacts
 *.yk
+*.ticket
+yk_master.grid
+yk_compiler.index
 10mb_raw.txt
 10mb_data.yk
 demo.yk
 example.yk
 decoded_file.txt
+restored_*.txt
 
 # Logs
 *.log

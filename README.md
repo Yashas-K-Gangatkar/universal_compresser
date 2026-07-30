@@ -1,38 +1,28 @@
-# 🌳 YK Universal Compressor — 3D Binary Compression Engine
+# 🌳 YK Universal Compiler — Master Grid Compression System
 
-> **A multi-dimensional binary mapping algorithm** that compresses data by storing shared bit sequences in a 3D coordinate space (X, Y, Z) and reconstructing files via microscopic pointer maps. The Rust engine implements a high-performance DEFLATE-class compressor with lazy matching and canonical Huffman coding.
+> **A two-engine compression system** that maps files into a shared "Master Grid" (Engine 1) and replaces any already-stored file with a microscopic **9-byte ticket** (Engine 2). Files matching the grid achieve ratios of millions-to-one with **zero data loss**.
 
 **Creator:** Yashas Krishnamurthy
-**Format:** `.yk`
+**Format:** `.ticket` (9-byte reference) + `yk_master.grid` (shared binary grid)
 **License:** MIT
-**Languages:** Rust (production engine) + Python (research prototype)
+**Languages:** Rust (production engine) + Python (3D Nuclear Tree research prototype)
 
 ---
 
-## 🚀 Two Implementations
+## 🚀 The Two Engines
 
-This repository contains **two** implementations of the YK algorithm:
+This repository implements the **YK Universal Compiler System** — a two-engine architecture for content-addressable compression:
 
-### 1. Rust Engine (Production) — `src/main.rs`
+### Engine 1 — The Mapper (`build` command)
+Appends raw bytes from an input file to a shared `yk_master.grid` binary file. Records the `(offset, length)` pair in a compiler index (`yk_compiler.index`). The grid itself stores **no pointers** — it is pure data.
 
-A high-performance DEFLATE-class compressor + decompressor written in Rust. Features:
-
-- **LZ77-style sliding window** with 32 KB lookback
-- **Lazy matching** — if a 4-byte match is found, look 1 byte ahead to see if skipping reveals a longer match
-- **Canonical Huffman coding** (DEFLATE BTYPE=10 compliant)
-- **Kraft inequality fix** — code lengths are rebalanced to satisfy Kraft's inequality, guaranteeing decodability
-- **Run-Length Encoding** of code-length trees (symbols 16, 17, 18) to squeeze metadata
-- **Hash-chain dictionary** for O(1) amortized match lookup
-- **External Master Grid (Preset Dictionary)** — preload a 32 KB reference text (e.g. Sherlock Holmes) so that new files (e.g. Alice in Wonderland) reuse English-language patterns already in the grid. Compressed files can shrink to a microscopic "ticket" referencing the master grid.
-- **Full round-trip** — both `compress` and `decompress` commands supported
-
-### 2. Python Prototype (Research) — `python/`
-
-The original conceptual prototype that explores the **3D Nuclear Tree** idea — mapping bits into a 3D grid with 26-direction overlap detection. Useful for understanding the algorithm's core concept, but not optimized for production.
+### Engine 2 — The Compiler (`ticket` + `scan` commands)
+- **`ticket`**: When you feed it a file that already exists in the Master Grid, it produces a **9-byte ticket** containing `[4-byte offset][4-byte length][1-byte flag]`. For a 9 MB file matching the grid, that's a **1,000,000:1** compression ratio.
+- **`scan`**: Reads a 9-byte ticket, jumps to the offset in the Master Grid, extracts exactly `length` bytes, and writes them to disk. **Zero data loss, guaranteed.**
 
 ---
 
-## 🛠️ Build & Run (Rust Engine)
+## 🛠️ Build & Run
 
 ### Prerequisites
 - Rust toolchain (1.56+) — install from https://rustup.rs
@@ -44,62 +34,43 @@ cd universal_compresser
 cargo build --release
 ```
 
-### Compress a file
+### The 3 Commands
+
+#### 1. `build` — Add a file to the Master Grid
 ```bash
-# Basic usage (output: input.txt.yk)
-./target/release/yk_engine compress input.txt
-
-# Specify output file
-./target/release/yk_engine compress input.txt compressed.yk
+./target/release/yk_engine build alice.txt
 ```
+Appends `alice.txt` to `yk_master.grid` and records its offset/length in `yk_compiler.index`.
 
-### Decompress a file
+#### 2. `ticket` — Compress a file that exists in the grid
 ```bash
-# Basic usage (output: decoded_file.txt)
-./target/release/yk_engine decompress compressed.yk
-
-# Specify output file
-./target/release/yk_engine decompress compressed.yk restored.txt
+./target/release/yk_engine ticket alice.txt alice.ticket
+```
+Searches the grid for an exact match. If found, writes a **9-byte ticket**:
+```
+[4 bytes: offset (u32 LE)] [4 bytes: length (u32 LE)] [1 byte: flag = 1]
+```
+Output:
+```
+Engine 2 (Compiler): File recognized! Generated 9-byte ticket.
+Original Size: 12345 bytes
+Ticket Size: 9 bytes
+Ratio: 1371.7 : 1
 ```
 
-### Expected output
-```
-Success! Compressed input.txt (12345 bytes) -> compressed.yk (4321 bytes)
-Success! Decompressed compressed.yk -> restored.txt (12345 bytes)
-```
-
-### ⚠️ Master Dictionary Setup
-
-The Rust engine uses an **external Master Grid** (preset dictionary). Before running, place a reference text file at:
-
-```
-/Users/yashas/Desktop/YK_Algorithm/master_dict.txt
-```
-
-A common choice is the full text of *Sherlock Holmes* (Project Gutenberg) — the engine takes the last 32 KB of the file as the preset dictionary. Both `compress` and `decompress` load the same dictionary, so the decoder can reconstruct the original file losslessly.
-
-To use a different dictionary path, edit the `dict_path` constant in `src/main.rs`:
-
-```rust
-let dict_path = "/path/to/your/master_dict.txt";
-```
-
----
-
-## 🧪 Run the Python Prototype
-
+#### 3. `scan` — Decode a ticket back to the original file
 ```bash
-cd python
+./target/release/yk_engine scan alice.ticket restored.txt
+```
+Reads the 9-byte ticket, extracts `length` bytes from `yk_master.grid` at `offset`, writes them to `restored.txt`. Output:
+```
+Engine 2 (Scanner): Read 9-byte ticket, extracted 12345 bytes from Master Grid.
+Zero Data Loss: Achieved.
+```
 
-# Basic 3D Nuclear Tree demo (lossless round-trip)
-python yk_nuclear_tree.py
-
-# Compressor + Decoder (factory + machine)
-python yk_factory.py
-python yk_machine.py
-
-# 10MB compression benchmark
-python yk_10mb_test.py
+### Verify lossless round-trip
+```bash
+diff alice.txt restored.txt && echo "Files are identical ✓"
 ```
 
 ---
@@ -113,104 +84,100 @@ universal_compresser/
 ├── LICENSE
 ├── .gitignore
 ├── src/
-│   └── main.rs                   # Rust compression engine (~250 lines)
-├── python/
-│   ├── yk_nuclear_tree.py        # 3D Nuclear Tree prototype (core concept)
-│   ├── yk_factory.py             # Python compressor
-│   ├── yk_machine.py             # Python decoder
-│   └── yk_10mb_test.py           # 10MB benchmark
+│   └── main.rs                   # Rust engine — build / ticket / scan
+├── python/                       # Research prototype (3D Nuclear Tree concept)
+│   ├── yk_nuclear_tree.py
+│   ├── yk_factory.py
+│   ├── yk_machine.py
+│   └── yk_10mb_test.py
 └── docs/
-    └── ARCHITECTURE.md           # Algorithm deep-dive
+    └── ARCHITECTURE.md
+```
+
+### Runtime artifacts (created by the engine, gitignored)
+```
+yk_master.grid       # The Master Grid (raw binary, grows as you `build`)
+yk_compiler.index    # Plain-text index: one "offset|length\n" entry per file
+*.ticket             # 9-byte compressed tickets
 ```
 
 ---
 
-## 🧠 The Concept (3D Nuclear Tree)
+## 🧠 The Concept
 
-Imagine standing inside a 3D grid. Words like `HELP`, `HOPE`, and `HUGE` appear as physical branches growing from a shared letter `H`. The `H` is **stationary** — planted once at a single coordinate — and every word that contains `H` branches off from it along different 3D axes. When you want to reconstruct a sentence, you don't store the letters; you store **tiny pointers** that tell the decoder how to walk through the 3D grid and collect the bits in order.
+Most compressors (ZIP, gzip, Brotli) analyze *patterns inside one file*. The YK Universal Compiler takes a different approach: **files that already exist in the Master Grid don't need to be compressed at all — they just need a 9-byte pointer.**
 
-That's the YK Nuclear Tree.
+| Traditional Compressor | YK Universal Compiler |
+|------------------------|------------------------|
+| Compresses patterns inside one file | Compresses by *recognizing* the whole file |
+| Ratio depends on internal redundancy | Ratio = file_size / 9 bytes (when matched) |
+| 10 MB repetitive text → ~1 MB | 10 MB matched file → **9 bytes** |
+| Decoder needs only the compressed file | Decoder needs the **same Master Grid** |
 
-### The Three Core Components
+### When does it work?
 
-1. **The 3D Space (Grid)** — A coordinate system `(x, y, z)` where every bit (`0` or `1`) lives at exactly one point.
-2. **The Insertion Engine (Overlap)** — When new binary data arrives, the engine scans all **26 directions** in 3D space (6 straight + 12 face-diagonals + 8 corner-diagonals) to find the longest existing matching sequence. It reuses that sequence and only branches into empty space when no overlap is found.
-3. **The Pointer Map (Read Instructions)** — A list of microscopic `(start_coord, direction, length)` tuples that tells the decoder exactly how to walk the grid to rebuild the original file — with zero data loss.
+✅ **Perfect fit**: A library of documents, code files, logs, or assets where the same file is stored/compressed many times (e.g. backups, CI build artifacts, container layers, package mirrors).
 
----
-
-## 📐 The 26 Directions (Python prototype)
-
-A single bit in 3D space has 26 possible neighbors — the same number of cells surrounding a cube in a 3D grid:
-
-| Type | Count | Examples |
-|------|-------|----------|
-| Straight (axis-aligned) | 6 | `(+1,0,0)`, `(0,+1,0)`, `(0,0,+1)` ... |
-| Face-diagonals (45° on a face) | 12 | `(+1,+1,0)`, `(+1,0,+1)`, `(0,+1,+1)` ... |
-| Corner-diagonals (45° through a corner) | 8 | `(+1,+1,+1)`, `(-1,+1,+1)` ... |
-| **Total** | **26** | |
-
----
-
-## ⚙️ Rust Engine Internals
-
-### Compression Pipeline
-
-```
-Raw bytes
-   │
-   ▼
-[LZ77 with Lazy Matching]  ──► tokens (literal | match)
-   │                            (length, distance) pairs
-   ▼
-[Canonical Huffman Coding] ──► bitstream
-   │                            lit/len codes + dist codes
-   ▼
-[RLE of code-length trees] ──► compact header
-   │                            symbols 16/17/18
-   ▼
-[BitWriter (LSB-first)]    ──► .yk file
-```
-
-### Why it beats ZIP on some inputs
-
-1. **Lazy matching** — many ZIP implementations use greedy matching; the YK engine looks 1 byte ahead to find longer matches.
-2. **Canonical Huffman with length limiting** — code lengths capped at 15 bits, ensuring decodability on all platforms.
-3. **RLE on the header itself** — repeated code lengths (e.g., long runs of 0s for unused symbols) are RLE-encoded, shrinking the per-block header.
+⚠️ **Limitation**: If a file is NOT in the Master Grid, the `ticket` command will report "File not found." You must `build` it first. Future versions may fall back to inline DEFLATE compression for unmatched files.
 
 ---
 
 ## 📊 Compression Performance
 
-| Input Type | Expected Ratio | Notes |
-|------------|----------------|-------|
-| Highly repetitive text | 10–100× | Same sentence repeated many times |
-| Source code | 3–10× | Repeated keywords, identifiers |
-| Logs | 5–20× | Timestamps + repeated messages |
-| Random / encrypted | ~1× | Information-theoretic limit (Shannon) |
-| Already-compressed data | < 1× | Cannot re-compress |
+| Scenario | Original Size | Ticket Size | Ratio |
+|----------|---------------|-------------|-------|
+| 1 KB file already in grid | 1,024 B | 9 B | 114 : 1 |
+| 1 MB file already in grid | 1,048,576 B | 9 B | 116,508 : 1 |
+| 10 MB file already in grid | 10,485,760 B | 9 B | 1,165,084 : 1 |
+| 1 GB file already in grid | 1,073,741,824 B | 9 B | 119,304,647 : 1 |
+| File NOT in grid | (any) | — | ❌ Not compressed (must `build` first) |
+
+The theoretical limit for a matched file is **always 9 bytes**, regardless of original size.
+
+---
+
+## 🧪 Example Session
+
+```bash
+# 1. Build the Master Grid with some files
+./target/release/yk_engine build sherlock_holmes.txt
+./target/release/yk_engine build alice_in_wonderland.txt
+./target/release/yk_engine build source_code.py
+
+# 2. Compress a file that's already in the grid
+./target/release/yk_engine ticket alice_in_wonderland.txt alice.ticket
+# → 9 bytes written
+
+# 3. Restore it
+./target/release/yk_engine scan alice.ticket restored_alice.txt
+# → exact bytes extracted from grid
+
+# 4. Verify
+diff alice_in_wonderland.txt restored_alice.txt && echo "Lossless ✓"
+```
 
 ---
 
 ## ⚠️ Current Limitations
 
-- The Rust engine's Master Grid path is **hardcoded** to `/Users/yashas/Desktop/YK_Algorithm/master_dict.txt`. Edit `dict_path` in `src/main.rs` to use a different path. (CLI flag support is on the roadmap.)
-- The Rust engine supports **dynamic Huffman blocks only** (BTYPE=10). Stored blocks (BTYPE=00) and fixed Huffman (BTYPE=01) are not yet implemented for decompression.
-- The Python prototype uses JSON/pickle for `.yk` files, which adds metadata overhead.
-- The 3D overlap scan in the Python prototype is O(n²) on grid size — needs spatial indexing for production scale.
-- Random/encrypted data cannot be compressed beyond its entropy limit (Shannon's theorem).
+- The `ticket` command only works for files **already in the Master Grid**. Partial matches or near-duplicates are not yet supported.
+- The Master Grid grows monotonically — there is no deduplication of *content* (only of *exact files*).
+- The grid path (`yk_master.grid`) and index path (`yk_compiler.index`) are hardcoded to the current working directory. CLI flags are on the roadmap.
+- The Python prototype (3D Nuclear Tree) is a separate research concept and is not interoperable with the Rust engine's `.ticket` format.
 
 ---
 
 ## 🛣️ Roadmap
 
-- [x] Rust decompressor (decode `.yk` back to original) ✅
-- [x] Preset dictionary / Master Grid support ✅
-- [ ] Make Master Grid path configurable via CLI flag (e.g. `--dict path`)
-- [ ] Spatial hash index for O(1) overlap lookup in Python prototype
-- [ ] GPU acceleration for 3D grid scan
-- [ ] Streaming compression (compress files larger than RAM)
-- [ ] CLI flags for compression level (1–9)
+- [x] Engine 1 (Mapper): `build` appends files to Master Grid ✅
+- [x] Engine 2 (Compiler): `ticket` generates 9-byte references ✅
+- [x] Engine 2 (Scanner): `scan` restores files losslessly ✅
+- [ ] Fallback compression for files NOT in the grid (DEFLATE-style inline block)
+- [ ] Content-addressable dedup (store each unique byte sequence once)
+- [ ] CLI flags for grid path, index path, and compression level
+- [ ] Partial-match support (ticket a file that differs by a few bytes from a grid entry)
+- [ ] Streaming `build` for files larger than RAM
+- [ ] SHA-256 verification of grid contents to detect corruption
 
 ---
 
@@ -221,12 +188,12 @@ MIT License — see [LICENSE](LICENSE).
 ## 👤 Author
 
 **Yashas Krishnamurthy**
-- Conceptualized the 3D Nuclear Tree
-- Designed the Preset Dictionary architecture
+- Conceptualized the YK Universal Compiler architecture
+- Designed the Engine 1 / Engine 2 split (Mapper + Compiler)
 - Implemented the Rust production engine and Python prototype
 
 ---
 
 ## 🙏 Acknowledgements
 
-The 3D Nuclear Tree is an original concept — distinct from LZ77, DEFLATE, and Huffman coding, though it borrows the idea of "find the longest previous match" from LZ-family compressors. The Rust engine implements a DEFLATE-compatible bitstream for interoperability with standard inflate decoders.
+The YK Universal Compiler is an original concept. It is fundamentally different from LZ77, DEFLATE, and Huffman coding — those algorithms compress *patterns inside a file*, while YK compresses by *recognizing whole files against a shared grid*. The Python 3D Nuclear Tree prototype remains in the repo as a research artifact exploring multi-dimensional overlap detection.
