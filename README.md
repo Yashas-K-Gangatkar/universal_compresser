@@ -15,13 +15,16 @@ This repository contains **two** implementations of the YK algorithm:
 
 ### 1. Rust Engine (Production) — `src/main.rs`
 
-A high-performance DEFLATE-class compressor written in Rust. Features:
+A high-performance DEFLATE-class compressor + decompressor written in Rust. Features:
 
 - **LZ77-style sliding window** with 32 KB lookback
 - **Lazy matching** — if a 4-byte match is found, look 1 byte ahead to see if skipping reveals a longer match
 - **Canonical Huffman coding** (DEFLATE BTYPE=10 compliant)
+- **Kraft inequality fix** — code lengths are rebalanced to satisfy Kraft's inequality, guaranteeing decodability
 - **Run-Length Encoding** of code-length trees (symbols 16, 17, 18) to squeeze metadata
 - **Hash-chain dictionary** for O(1) amortized match lookup
+- **External Master Grid (Preset Dictionary)** — preload a 32 KB reference text (e.g. Sherlock Holmes) so that new files (e.g. Alice in Wonderland) reuse English-language patterns already in the grid. Compressed files can shrink to a microscopic "ticket" referencing the master grid.
+- **Full round-trip** — both `compress` and `decompress` commands supported
 
 ### 2. Python Prototype (Research) — `python/`
 
@@ -43,16 +46,42 @@ cargo build --release
 
 ### Compress a file
 ```bash
-# Basic usage
+# Basic usage (output: input.txt.yk)
 ./target/release/yk_engine compress input.txt
 
 # Specify output file
 ./target/release/yk_engine compress input.txt compressed.yk
 ```
 
+### Decompress a file
+```bash
+# Basic usage (output: decoded_file.txt)
+./target/release/yk_engine decompress compressed.yk
+
+# Specify output file
+./target/release/yk_engine decompress compressed.yk restored.txt
+```
+
 ### Expected output
 ```
 Success! Compressed input.txt (12345 bytes) -> compressed.yk (4321 bytes)
+Success! Decompressed compressed.yk -> restored.txt (12345 bytes)
+```
+
+### ⚠️ Master Dictionary Setup
+
+The Rust engine uses an **external Master Grid** (preset dictionary). Before running, place a reference text file at:
+
+```
+/Users/yashas/Desktop/YK_Algorithm/master_dict.txt
+```
+
+A common choice is the full text of *Sherlock Holmes* (Project Gutenberg) — the engine takes the last 32 KB of the file as the preset dictionary. Both `compress` and `decompress` load the same dictionary, so the decoder can reconstruct the original file losslessly.
+
+To use a different dictionary path, edit the `dict_path` constant in `src/main.rs`:
+
+```rust
+let dict_path = "/path/to/your/master_dict.txt";
 ```
 
 ---
@@ -165,7 +194,8 @@ Raw bytes
 
 ## ⚠️ Current Limitations
 
-- The Rust engine currently implements **compression only** (decompression is on the roadmap).
+- The Rust engine's Master Grid path is **hardcoded** to `/Users/yashas/Desktop/YK_Algorithm/master_dict.txt`. Edit `dict_path` in `src/main.rs` to use a different path. (CLI flag support is on the roadmap.)
+- The Rust engine supports **dynamic Huffman blocks only** (BTYPE=10). Stored blocks (BTYPE=00) and fixed Huffman (BTYPE=01) are not yet implemented for decompression.
 - The Python prototype uses JSON/pickle for `.yk` files, which adds metadata overhead.
 - The 3D overlap scan in the Python prototype is O(n²) on grid size — needs spatial indexing for production scale.
 - Random/encrypted data cannot be compressed beyond its entropy limit (Shannon's theorem).
@@ -174,8 +204,9 @@ Raw bytes
 
 ## 🛣️ Roadmap
 
-- [ ] Rust decompressor (decode `.yk` back to original)
-- [ ] Preset dictionary / Master Grid support (9-byte tickets for known files)
+- [x] Rust decompressor (decode `.yk` back to original) ✅
+- [x] Preset dictionary / Master Grid support ✅
+- [ ] Make Master Grid path configurable via CLI flag (e.g. `--dict path`)
 - [ ] Spatial hash index for O(1) overlap lookup in Python prototype
 - [ ] GPU acceleration for 3D grid scan
 - [ ] Streaming compression (compress files larger than RAM)
