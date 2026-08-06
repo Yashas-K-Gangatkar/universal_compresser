@@ -1,15 +1,21 @@
 [package]
 name = "yk_engine"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
-description = "YK Master Grid System — 3-Engine deduplication architecture with 9-byte tickets"
+description = "YK Universal Compressor — 3D Nuclear Tree architecture with 26-direction spatial mapping and 64-bit arithmetic coding"
 license = "MIT"
-authors = ["Yashas Krishnamurthy"]
+authors = ["Yashas K Gangatkar"]
 
 [dependencies]
 
+# Primary engine: 3D Arithmetic Engine (compress / decompress)
 [[bin]]
 name = "yk_engine"
+path = "src/three_d_engine.rs"
+
+# Secondary engine: Master Grid Deduplication (build / ticket / scan)
+[[bin]]
+name = "yk_dedup"
 path = "src/master_grid.rs"
 
 [profile.release]
