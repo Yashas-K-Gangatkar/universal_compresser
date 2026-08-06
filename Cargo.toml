@@ -1,17 +1,17 @@
 [package]
 name = "yk_engine"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
-description = "YK Universal Compressor — 3D Nuclear Tree architecture with 26-direction spatial mapping and 64-bit arithmetic coding"
+description = "YK Universal Compressor — 3D Nuclear Tree with Fenwick O(log N) speed upgrade + native 2-bit genomic mode"
 license = "MIT"
 authors = ["Yashas K Gangatkar"]
 
 [dependencies]
 
-# Primary engine: 3D Arithmetic Engine (compress / decompress)
+# Primary engine: 3D Arithmetic Engine with Fenwick + 2-bit genomic mode
 [[bin]]
 name = "yk_engine"
-path = "src/three_d_engine.rs"
+path = "src/main.rs"
 
 # Secondary engine: Master Grid Deduplication (build / ticket / scan)
 [[bin]]

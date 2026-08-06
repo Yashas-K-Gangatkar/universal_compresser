@@ -149,8 +149,10 @@ universal_compresser/
 ├── LICENSE
 ├── .gitignore
 ├── src/
-│   ├── three_d_engine.rs         # Engine 1+2+3: 3D Modulo Grid + 26-direction
-│   │                             # scanner + 64-bit arithmetic coder
+│   ├── main.rs                   # Engine 1+2+3: 3D Modulo Grid + 26-direction
+│   │                             # scanner + 64-bit arithmetic coder +
+│   │                             # Fenwick O(log N) probability model +
+│   │                             # native 2-bit genomic pre-processor
 │   │                             # Commands: compress / decompress
 │   └── master_grid.rs            # Universal Compiler dedup engine
 │                                 # Commands: build / ticket / scan

@@ -136,7 +136,7 @@ impl ArithmeticDecoder {
 }
 
 // ==========================================
-// ADAPTIVE PROBABILITY MODELS
+// ADAPTIVE PROBABILITY MODELS (FENWICK TREE)
 // ==========================================
 #[derive(Copy, Clone)]
 struct BitModel { freq0: u32, freq1: u32 }
@@ -155,31 +155,133 @@ impl BitModel {
     }
 }
 
-struct FreqModel { frequencies: Vec<u32>, total: u32 }
+struct FreqModel {
+    tree: Vec<u32>,
+    size: usize,
+    total: u32,
+}
 impl FreqModel {
-    fn new(size: usize) -> Self { FreqModel { frequencies: vec![1; size], total: size as u32 } }
+    fn new(size: usize) -> Self {
+        let mut model = FreqModel {
+            tree: vec![0; size + 1],
+            size,
+            total: 0,
+        };
+        for i in 0..size {
+            model.update(i, 1);
+        }
+        model
+    }
+
+    fn update(&mut self, mut sym: usize, delta: u32) {
+        sym += 1;
+        while sym <= self.size {
+            self.tree[sym] = self.tree[sym].saturating_add(delta);
+            sym += sym & sym.wrapping_neg();
+        }
+        self.total = self.total.saturating_add(delta);
+    }
+
+    fn prefix_sum(&self, mut sym: usize) -> u32 {
+        sym += 1;
+        let mut sum = 0;
+        while sym > 0 {
+            sum += self.tree[sym];
+            sym -= sym & sym.wrapping_neg();
+        }
+        sum
+    }
+
     fn get_range(&self, sym: usize) -> (u64, u64, u64) {
-        let mut low = 0;
-        for i in 0..sym { low += self.frequencies[i]; }
-        let high = low + self.frequencies[sym];
+        let low = if sym == 0 { 0 } else { self.prefix_sum(sym - 1) };
+        let high = self.prefix_sum(sym);
         (low as u64, high as u64, self.total as u64)
     }
-    fn find_symbol(&self, value: u64) -> usize {
-        let mut sum = 0;
-        for i in 0..self.frequencies.len() {
-            sum += self.frequencies[i];
-            if value < sum as u64 { return i; }
+
+    fn find_symbol(&self, mut target: u64) -> usize {
+        let mut pos = 0;
+        let mut bitmask = 1;
+        while (bitmask << 1) <= self.size {
+            bitmask <<= 1;
         }
-        self.frequencies.len() - 1
+
+        while bitmask > 0 {
+            let next_pos = pos + bitmask;
+            if next_pos <= self.size && (self.tree[next_pos] as u64) <= target {
+                pos = next_pos;
+                target -= self.tree[pos] as u64;
+            }
+            bitmask >>= 1;
+        }
+        pos
     }
-    fn update(&mut self, sym: usize) {
-        self.frequencies[sym] += 1;
-        self.total += 1;
+
+    fn rescale(&mut self) {
+        let mut new_freqs = vec![0u32; self.size];
+        for i in 0..self.size {
+            let freq = self.get_range(i).1 - self.get_range(i).0;
+            new_freqs[i] = (freq >> 1) + 1;
+        }
+
+        for i in 0..self.tree.len() {
+            self.tree[i] = 0;
+        }
+        self.total = 0;
+
+        for i in 0..self.size {
+            self.update(i, new_freqs[i]);
+        }
+    }
+
+    fn adaptive_update(&mut self, sym: usize) {
+        self.update(sym, 1);
         if self.total > 0xFFFF {
-            for i in 0..self.frequencies.len() { self.frequencies[i] = (self.frequencies[i] >> 1) + 1; }
-            self.total = self.frequencies.iter().sum();
+            self.rescale();
         }
     }
+}
+
+// ==========================================
+// 2-BIT GENOMIC PRE-PROCESSOR
+// ==========================================
+fn pack_dna(raw: &[u8]) -> Vec<u8> {
+    let mut packed = Vec::with_capacity(raw.len() / 4);
+    let mut bit_buf: u8 = 0;
+    let mut bit_count: u8 = 0;
+
+    for &byte in raw {
+        let val = match byte {
+            b'A' => 0,
+            b'C' => 1,
+            b'G' => 2,
+            b'T' => 3,
+            _ => continue, // Skip newlines and headers
+        };
+        bit_buf = (bit_buf << 2) | val;
+        bit_count += 2;
+        if bit_count == 8 {
+            packed.push(bit_buf);
+            bit_buf = 0;
+            bit_count = 0;
+        }
+    }
+    if bit_count > 0 {
+        packed.push(bit_buf << (8 - bit_count));
+    }
+    packed
+}
+
+fn unpack_dna(packed: &[u8]) -> Vec<u8> {
+    let mut unpacked = Vec::with_capacity(packed.len() * 4);
+    let mapping = [b'A', b'C', b'G', b'T'];
+
+    for &byte in packed {
+        for i in (0..4).rev() {
+            let val = (byte >> (i * 2)) & 0x03;
+            unpacked.push(mapping[val as usize]);
+        }
+    }
+    unpacked
 }
 
 // ==========================================
@@ -189,7 +291,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
-        println!("YK 3D Arithmetic Engine (Reference Grid Mode)\nUsage:");
+        println!("YK 3D Arithmetic Engine (Genomic Mode)\nUsage:");
         println!("  Compress:   ./yk_engine compress <input_file> <output_file.yk> [reference_file]");
         println!("  Decompress: ./yk_engine decompress <input_file.yk> <output_file> [reference_file]");
         return;
@@ -200,14 +302,31 @@ fn main() {
     let output_file = if args.len() >= 4 { args[3].clone() } else { "output.yk".to_string() };
     let reference_file = if args.len() >= 5 { Some(args[4].clone()) } else { None };
 
+    // Auto-detect Genomic Mode
+    let is_genomic = input_file.ends_with(".fna") || input_file.ends_with(".fasta") || input_file.ends_with(".fa");
+
     match command.as_str() {
         "compress" => {
-            let target_data = fs::read(input_file).expect("Failed to read input file");
+            let raw_target = fs::read(input_file).expect("Failed to read input file");
 
-            let ref_data = if let Some(ref path) = reference_file {
+            // 2-Bit Pack if Genomic
+            let target_data = if is_genomic {
+                println!("Genomic mode active: 2-bit packing DNA...");
+                pack_dna(&raw_target)
+            } else {
+                raw_target.clone()
+            };
+
+            let raw_ref = if let Some(ref path) = reference_file {
                 fs::read(path).expect("Failed to read reference file")
             } else {
                 Vec::new()
+            };
+
+            let ref_data = if is_genomic && !raw_ref.is_empty() {
+                pack_dna(&raw_ref)
+            } else {
+                raw_ref
             };
 
             let data = if !ref_data.is_empty() {
@@ -237,11 +356,17 @@ fn main() {
             let mut coord_models_y = [BitModel::new(); 21];
             let mut coord_models_z = [BitModel::new(); 21];
 
+            // Header: [Target Length (4)] [Ref Offset (4)] [Genomic Flag (1)]
             let mut final_output = (target_data.len() as u32).to_le_bytes().to_vec();
             final_output.extend_from_slice(&(target_start_offset as u32).to_le_bytes());
+            final_output.push(if is_genomic { 1 } else { 0 });
 
             let mut i = target_start_offset;
             while i < data.len() {
+                if i % 100000 == 0 && i != target_start_offset {
+                    println!("Processed {} / {} bytes...", i - target_start_offset, target_data.len());
+                }
+
                 let mut best_len = 0;
                 let mut best_off = 0;
                 let mut best_dir = 0;
@@ -260,7 +385,6 @@ fn main() {
                                 let mut curr_y = ay as i32;
                                 let mut curr_z = az as i32;
 
-                                // CRITICAL FIX: Cap at 259 bytes to prevent infinite match walking!
                                 while i + len < data.len() && len < 259 {
                                     if curr_x < 0 || curr_y < 0 || curr_z < 0 { break; }
                                     let grid_idx = to_3d_offset(curr_x as u32, curr_y as u32, curr_z as u32);
@@ -280,16 +404,16 @@ fn main() {
                 if best_len >= 4 {
                     let (l, h, t) = sym_model.get_range(256);
                     enc.update(l, h, t);
-                    sym_model.update(256);
+                    sym_model.adaptive_update(256);
 
                     let len_sym = (best_len - 4).min(255);
                     let (l, h, t) = len_model.get_range(len_sym);
                     enc.update(l, h, t);
-                    len_model.update(len_sym);
+                    len_model.adaptive_update(len_sym);
 
                     let (l, h, t) = dir_model.get_range(best_dir);
                     enc.update(l, h, t);
-                    dir_model.update(best_dir);
+                    dir_model.adaptive_update(best_dir);
 
                     let (x, y, z) = offset_to_3d(best_off);
                     let coords = [x, y, z];
@@ -316,7 +440,7 @@ fn main() {
                 } else {
                     let (l, h, t) = sym_model.get_range(data[i] as usize);
                     enc.update(l, h, t);
-                    sym_model.update(data[i] as usize);
+                    sym_model.adaptive_update(data[i] as usize);
                     i += 1;
                 }
             }
@@ -329,12 +453,13 @@ fn main() {
         }
         "decompress" => {
             let data = fs::read(input_file).expect("Failed to read input file");
-            if data.len() < 8 { panic!("Invalid YK file"); }
+            if data.len() < 9 { panic!("Invalid YK file"); }
 
             let bytes_to_decode = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
             let target_start_offset = u32::from_le_bytes([data[4], data[5], data[6], data[7]]) as usize;
+            let is_genomic = data[8] == 1;
 
-            let mut dec = ArithmeticDecoder::new(data[8..].to_vec());
+            let mut dec = ArithmeticDecoder::new(data[9..].to_vec());
 
             let mut sym_model = FreqModel::new(257);
             let mut len_model = FreqModel::new(256);
@@ -344,7 +469,12 @@ fn main() {
             let mut coord_models_z = [BitModel::new(); 21];
 
             let mut out: Vec<u8> = if let Some(ref path) = reference_file {
-                fs::read(path).expect("Failed to read reference file")
+                let raw_ref = fs::read(path).expect("Failed to read reference file");
+                if is_genomic {
+                    pack_dna(&raw_ref)
+                } else {
+                    raw_ref
+                }
             } else {
                 Vec::new()
             };
@@ -360,7 +490,7 @@ fn main() {
 
                 let (l, h, _) = sym_model.get_range(sym);
                 dec.update(l, h, total);
-                sym_model.update(sym);
+                sym_model.adaptive_update(sym);
 
                 if sym == 256 {
                     let len_total = len_model.total as u64;
@@ -368,7 +498,7 @@ fn main() {
                     let len_sym = len_model.find_symbol(len_val);
                     let (l, h, _) = len_model.get_range(len_sym);
                     dec.update(l, h, len_total);
-                    len_model.update(len_sym);
+                    len_model.adaptive_update(len_sym);
                     let len = len_sym + 4;
 
                     let dir_total = dir_model.total as u64;
@@ -376,7 +506,7 @@ fn main() {
                     let dir_idx = dir_model.find_symbol(dir_val);
                     let (l, h, _) = dir_model.get_range(dir_idx);
                     dec.update(l, h, dir_total);
-                    dir_model.update(dir_idx);
+                    dir_model.adaptive_update(dir_idx);
 
                     let mut coords = [0u32; 3];
                     for axis in 0..3 {
@@ -431,8 +561,16 @@ fn main() {
                 }
             }
 
-            let final_data = &out[target_start_offset..];
-            fs::write(&output_file, final_data).expect("Failed to write");
+            // Strip reference and unpack if genomic
+            let packed_data = &out[target_start_offset..];
+            let final_data = if is_genomic {
+                println!("Genomic mode active: Unpacking 2-bit DNA...");
+                unpack_dna(packed_data)
+            } else {
+                packed_data.to_vec()
+            };
+
+            fs::write(&output_file, &final_data).expect("Failed to write");
             println!("Success! 3D Arithmetic Decompressed {} -> {} ({} bytes)", input_file, output_file, final_data.len());
         }
         _ => println!("Unknown command."),
