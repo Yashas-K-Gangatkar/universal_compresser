@@ -2,21 +2,15 @@
 name = "yk_engine"
 version = "0.5.0"
 edition = "2021"
-description = "YK Universal Compressor — 3D Nuclear Tree with Fenwick O(log N) speed upgrade + native 2-bit genomic mode"
-license = "MIT"
+description = "YK Universal Compressor — 3D Nuclear Tree with 64-bit arithmetic coding, Fenwick O(log N) speed, and 2-bit genomic mode"
+license = "PolyForm-Noncommercial-1.0.0"
 authors = ["Yashas K Gangatkar"]
 
 [dependencies]
 
-# Primary engine: 3D Arithmetic Engine with Fenwick + 2-bit genomic mode
 [[bin]]
 name = "yk_engine"
 path = "src/main.rs"
-
-# Secondary engine: Master Grid Deduplication (build / ticket / scan)
-[[bin]]
-name = "yk_dedup"
-path = "src/master_grid.rs"
 
 [profile.release]
 opt-level = 3
