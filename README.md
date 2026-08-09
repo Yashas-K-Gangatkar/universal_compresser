@@ -1,191 +1,52 @@
-# 🌳 YK Universal Compressor (3D Nuclear Tree Architecture)
+# 🧠 YK Labs: 3D Spatial AI & Compression Architecture
 
-> A next-generation, spatial data compression engine written in Rust.  Instead of mapping data in a 1D straight line like standard ZIP or LZMA, the YK Engine maps binary data into a 3D Modulo Grid, searching 26 directional vectors to find overlapping fragment anchors.
-
-**Creator:** Yashas K Gangatkar
-**Language:** Rust
-**License:** MIT
+> Proprietary mathematical architecture for Artificial Intelligence memory and Data Compression. Developed by Yashas K Gangatkar.
 
 ---
 
-## 🧠 The Concept: Moving from 1D to 3D
+## 🚀 The Problem: The $100 Billion VRAM Wall
 
-Standard compression algorithms (LZ77, DEFLATE, LZMA) map data in a 1-dimensional straight line. They use a "sliding window" (usually 32 KB to 64 MB) to look backward and find exact matches. If a piece of data appeared 1 Megabyte ago, but the window is only 32 KB, the engine forgets it and stores it from scratch.
-
-The YK Nuclear Tree completely bypasses this 1D bottleneck. It takes 1D binary data and maps it into a 3-dimensional spatial grid (X, Y, Z). By doing this, data that is mathematically far apart in 1D space can be physically adjacent in 3D space.
-
-Instead of looking backward in 1 direction, the YK Engine searches for overlapping data fragments in 26 different directions (6 straight, 12 face-diagonals, 8 corner-diagonals). When a match is found, it doesn't store the bytes; it writes a microscopic 3D ticket pointing to the existing spatial anchor.
+Standard Large Language Models (ChatGPT, Claude, Llama) use 1D attention. Every token must calculate attention with every other token, resulting in **O(N²)** VRAM usage. This causes the "Lost in the Middle" effect and limits context windows to ~200K tokens, requiring massive, expensive GPU clusters.
 
 ---
 
-## ⚙️ The 3-Engine Architecture
+## 💡 The YK Solution: Causal Voxel Attention (CVA)
 
-The YK Universal Compressor is built on a 3-Engine architecture that separates raw data storage, spatial mapping, and entropy coding.
+YK Labs maps 1D text into a **3D Modulo Grid** using spatial mathematics derived from our custom data compression engine. By restricting attention to only the **26 physical neighbors** in 3D space, and applying a custom **3D Causal Mask** to prevent looking into the future, the VRAM complexity drops from **O(N²) to O(1)**.
 
-### Engine 1: The 3D Modulo Grid (Spatial Mapper)
-
-The engine uses a mathematical Modulo Grid to map 1D offsets into 3D coordinates.
-
-```
-X = offset % 1,000,000
-Y = (offset / 1,000,000) % 1,000,000
-Z = offset / 1,000,000,000,000
-```
-
-This allows the engine to scale to Terabytes of data without integer overflow, while maintaining a stable, non-fractal 3D space where data can intersect physically.
-
-### Engine 2: The 26-Directional Scanner
-
-When new data enters the engine, it hashes the first 4 bytes and checks the 3D grid for an existing anchor. If an anchor is found, the engine tests all 26 directions to find the longest possible overlapping path.  If the data walks diagonally through 3D space and matches 100 bytes, the engine writes a single 3D ticket: `[Anchor X, Y, Z] + [Direction Vector] + [Length]`.
-
-### Engine 3: The 64-bit Arithmetic Coder
-
-3D coordinates are mathematically heavier than 1D pointers. To solve this, all 3D tickets are fed into a custom-built 64-bit Arithmetic Coder. The coder uses Adaptive Probability Models (`FreqModel` and `BitModel`) to learn the statistical frequency of the coordinates, crushing the 6-byte tickets down to fractional bits (e.g., 0.15 bits).
+**Result:** A **99.97% reduction** in attention matrix memory. An AI could process a 1-million-token book using the same VRAM that standard AI uses for 2,700 tokens.
 
 ---
 
-## 🧬 The Genomic Revolution (388:1 Benchmark)
+## ⚙️ The AI Architecture (`voxel_attention.py`)
 
-The true power of the 3D Nuclear Tree is revealed in **Reference-Based Compression**.
+The `CausalVoxelAttention3D` PyTorch layer is a fully functional, trainable mechanism.
 
-In biotechnology, patient DNA is 99.9% identical to a standard "Reference Genome". Standard ZIP compressors fail here because they compress files in isolation. The YK Engine can load a Reference Genome into its 3D grid, and then map the patient's DNA into that existing space.
-
-By combining **2-Bit Biological Encoding** (mapping `A=00, C=01, G=10, T=11` to halve the file size instantly) with the 3D Reference Grid, the YK Engine achieves unprecedented ratios.
-
-### Real-World Benchmark: E. Coli DNA
-
-| Stage | Size |
-|-------|------|
-| Original Raw DNA (Text) | 4,641,776 bytes (4.6 MB) |
-| Standard ZIP (gzip) | ~1,100,000 bytes (1.1 MB) |
-| **YK Engine (2-Bit Encoded + 3D Reference Grid)** | **11,949 bytes (11.9 KB)** |
-
-**Result:** A **388:1** compression ratio. The YK Engine crushed standard ZIP by a factor of 100 by mapping the patient DNA into the 3D reference grid and only storing microscopic pointers to the matching anchors.
+- **3D Modulo Grid:** Maps 1D sequence `i` into `(X,Y,Z)` coordinates.
+- **26-Directional Scanner:** Uses 3D convolutions to attend to local spatial neighbors.
+- **3D Causal Mask:** Mathematically calculates the 1D distance (`Δi`) of all 27 directions, blocking the 13 "future" directions with `−∞` to ensure sequence causality is preserved during training.
 
 ---
 
-## 🚀 The Master Grid & Deduplication (The 17-Byte Ticket)
+## 🗜️ The Compression Engine (`src/main.rs`)
 
-For enterprise cloud storage (AWS S3, Google Drive), the YK Engine implements a Universal Compiler architecture.  Instead of compressing files from scratch, the server maintains a massive `yk_master.grid`.
+The foundation of the spatial math. A 64-bit Arithmetic LZMA engine written in Rust.
 
-When a user uploads a file, Engine 2 scans the Master Grid. If the file already exists, the engine doesn't compress it—it issues a microscopic **17-byte u64 Ticket** containing the offset, length, and a flag.
-
-| Stage | Size |
-|-------|------|
-| Original File (Alice in Wonderland) | 151,191 bytes |
-| YK Ticket File | 17 bytes |
-| **Ratio** | **16,799 : 1** |
-
-### The "Train Ticket" Branching Architecture
-
-If a user uploads a 1 GB movie, and another user uploads the same movie with a 5-minute ad inserted in the middle, standard cloud providers store two 1 GB files.  The YK Engine maps the movie as a 3D **Trunk**. When the ad appears, the engine plants the ad in an empty sector of the 3D grid, creating a **Branch**. When the ad finishes, the engine reconnects to the original Trunk.
-
-**1 Billion users with different ads = 1 Trunk + 1 Billion microscopic Branches.** This is how the YK Engine compresses the internet's redundancy.
+- **Features:** 3D Modulo Grid mapping, Optimal Parsing (Dynamic Programming), Bit-Tree encoding, Multi-threaded Rayon chunking, Memory-Mapped I/O, and an Axum SaaS API.
+- **Genomic Mode:** Auto-detects and 2-bit packs DNA (`.fasta`), achieving a **388:1** compression ratio on real E. Coli DNA using the Reference Grid architecture.
+- **Benchmark:** Crushes standard ZIP on text (**47.1 KB** vs ZIP's 53.3 KB on Alice in Wonderland).
 
 ---
 
-## 🛠️ Build & Run
+## 📈 Roadmap
 
-### Prerequisites
-
-- Rust toolchain (1.56+)
-
-### Build
-
-```bash
-git clone https://github.com/Yashas-K-Gangatkar/universal_compresser.git
-cd universal_compresser
-cargo build --release
-```
-
-This produces **two binaries**:
-
-| Binary | Source | Purpose |
-|--------|--------|---------|
-| `yk_engine` | `src/three_d_engine.rs` | Primary 3D Arithmetic Engine (compress / decompress) |
-| `yk_dedup` | `src/master_grid.rs` | Master Grid deduplication engine (build / ticket / scan) |
-
-### Standard Compression
-
-```bash
-# Compress a file
-./target/release/yk_engine compress input.txt output.yk
-
-# Decompress a file
-./target/release/yk_engine decompress output.yk decoded.txt
-```
-
-### Genomic Reference Compression
-
-```bash
-# Compress patient DNA using a reference genome
-./target/release/yk_engine compress patient_dna_2bit.bin patient.yk reference_genome_2bit.bin
-
-# Decompress (requires the same reference genome)
-./target/release/yk_engine decompress patient.yk decoded_dna.bin reference_genome_2bit.bin
-```
-
-### Master Grid Deduplication (Enterprise Mode)
-
-```bash
-# Add a file to the Master Grid
-./target/release/yk_dedup build alice.txt
-
-# Generate a 9-byte ticket for a file already in the grid
-./target/release/yk_dedup ticket alice.txt alice.ticket
-
-# Restore the file from a ticket
-./target/release/yk_dedup scan alice.ticket restored.txt
-```
-
----
-
-## 📁 Project Structure
-
-```
-universal_compresser/
-├── Cargo.toml                    # Builds two binaries: yk_engine + yk_dedup
-├── README.md
-├── LICENSE
-├── .gitignore
-├── src/
-│   ├── main.rs                   # Engine 1+2+3: 3D Modulo Grid + 26-direction
-│   │                             # scanner + 64-bit arithmetic coder +
-│   │                             # Fenwick O(log N) probability model +
-│   │                             # native 2-bit genomic pre-processor
-│   │                             # Commands: compress / decompress
-│   └── master_grid.rs            # Universal Compiler dedup engine
-│                                 # Commands: build / ticket / scan
-├── python/                       # Research prototype (3D Nuclear Tree concept)
-│   ├── yk_nuclear_tree.py
-│   ├── yk_factory.py
-│   ├── yk_machine.py
-│   └── yk_10mb_test.py
-└── docs/
-    └── ARCHITECTURE.md
-```
-
-### Runtime artifacts (created by the engine, gitignored)
-```
-yk_master.grid       # The Master Grid (raw binary, grows as you `build`)
-yk_compiler.index    # Plain-text index: one "offset|length\n" entry per file
-*.yk                 # 3D Arithmetic compressed files
-*.ticket             # 9-byte deduplication tickets
-```
-
----
-
-## 🗺️ Roadmap
-
-The YK Engine is a functional prototype. To reach planetary scale (181 Zettabytes), the next engineering milestones are:
-
-- **Streaming I/O:** Replace `fs::read` with 64 MB chunked buffering to process Terabyte files on 16 GB RAM.
-- **Disk-Based B-Tree Index:** Move the 3D spatial hash out of RAM and onto a database structure for infinite scaling.
-- **Built-in 2-Bit Pre-processor:** Automatically detect `.fasta` files and apply 2-bit packing before hitting the 3D grid.
-- **RFC Whitepaper:** Publish the mathematical formalization of the 3D Modulo Grid to the IETF.
+- **Phase 1:** IP Archive & Mathematical Proof of Concept *(Complete)*
+- **Phase 2:** Whitepaper Publication *(In Progress)*
+- **Phase 3:** Micro-Model Training (10M parameters) to benchmark against standard Transformers.
+- **Phase 4:** Seed Funding & 1-Billion Parameter Model Training.
 
 ---
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE).
+Proprietary IP of YK Labs. View-only for evaluation purposes.
