@@ -51,4 +51,5 @@ The foundation of the spatial math. A 64-bit Arithmetic LZMA engine written in R
 
 ## 📄 License
 
-Proprietary IP of YK Labs. PolyForm Noncommercial. View-only for evaluation purposes.
+Proprietary IP of YK Labs. Licensed under PolyForm Noncommercial 1.0.0.
+Viewing and research use is permitted. Commercial deployment requires a commercial license from YK Labs.
